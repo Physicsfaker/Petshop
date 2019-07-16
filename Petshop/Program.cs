@@ -58,13 +58,13 @@ namespace Petshop
 
             new PetshopServer();
 
-            Task.Run(() =>
+            Task.Run(async () => 
             {
                 HttpWebRequest requestt = (HttpWebRequest)WebRequest.Create($@"http://{host}:80/g=123"); ///get 1
                 requestt.Credentials = CredentialCache.DefaultCredentials;
                 requestt.Method = "GET";
                 requestt.ContentType = "application/x-www-form-urlencoded";
-                WebResponse responsee = requestt.GetResponse();
+                WebResponse responsee = await requestt.GetResponseAsync();
                 Console.WriteLine("Отправилось...");
                 using (Stream stream = responsee.GetResponseStream())
                 {
