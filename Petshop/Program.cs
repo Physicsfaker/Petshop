@@ -2,7 +2,9 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
+
 
 /*Задание заключается в разработке HTTP-сервера «Petshop» в виде консольного приложения.
  * Требования к результату следующие:
@@ -22,118 +24,84 @@ namespace Petshop
     class PetshopServer
     {
         #region Server
-        TcpListener Listener; // Объект, принимающий TCP-клиентов
+        HttpListener Listener; // Объект, принимающий клиентов
         public static string host; //адрес сервера
 
         public PetshopServer()
         {
-            Listener = new TcpListener(IPAddress.Any, 80); // Создаем "слушателя" для указанного порта
+            Listener = new HttpListener();
+            Listener.Prefixes.Add($"http://{host}:80/");
             Listener.Start();
 
-            Task.Run(() => { while (true) new Client(Listener.AcceptTcpClient()); });
+            Task.Run(() => { while (true) new Client(Listener.GetContext()); });
         }
 
         ~PetshopServer() { if (Listener != null) Listener.Stop(); } // Остановка сервера
         #endregion
 
+        #region Client
         public static void SendRequest(string command)
         {
             command = command.ToLower();
-            WebRequest request;
+            string responseFromServer ="";
 
             if (command.ToLower().StartsWith("post /pets"))  //post
             {
-                request = WebRequest.Create($@"http://{host}:80/");  
+                var request = (HttpWebRequest)WebRequest.Create($"http://{host}:80/");
+                var postData = "/pets";
+                var data = Encoding.ASCII.GetBytes(postData);
+
                 request.Method = "POST";
-                string param = "/pets";
-                byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(param);
                 request.ContentType = "application/x-www-form-urlencoded";
-                request.ContentLength = byteArray.Length;
+                request.ContentLength = data.Length;
+
+                using (var stream = request.GetRequestStream())
+                {
+                    stream.Write(data, 0, data.Length);
+                }
                 Console.WriteLine("Отправилось post...");
+                var response = (HttpWebResponse)request.GetResponse();
+                var responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
+                responseFromServer = responseString.ToString();
             }
+
             else if (command.ToLower().StartsWith("get ")) //get
             {
-                request = WebRequest.Create($@"http://{host}:80?param=/pets"+ command);
-                request.Credentials = CredentialCache.DefaultCredentials;
-                request.Method = "GET";
-                request.ContentType = "application/x-www-form-urlencoded";
-                Console.WriteLine("Отправилось get...");
-            }
-            else { Console.Clear(); Console.WriteLine("Invalid command!");  return; } //неверные команды
 
-            WebResponse responsee = request.GetResponse();
-            using (Stream stream = responsee.GetResponseStream())
-            {
-                using (StreamReader reader = new StreamReader(stream))
-                {
-                    Console.WriteLine(reader.ReadToEnd());
-                }
+                var request = (HttpWebRequest)WebRequest.Create($"http://{host}:80/?"+ command.Substring(4));
+                Console.WriteLine("Отправилось get...");
+                var response = (HttpWebResponse)request.GetResponse();
+                var responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
+                responseFromServer = responseString.ToString();
             }
-            responsee.Close();
-            Console.WriteLine("Все конченно!");
+            else { Console.Clear(); Console.WriteLine("Invalid command!"); return; } //неверные команды
+
+            Console.WriteLine("Server:" + responseFromServer);
         }
+        #endregion
 
         static void Main(string[] args)
         {
-            new PetshopServer(); //Создаем прослушку и сам сервер
-
             string hostName = Dns.GetHostName();     // Получение имени компьютера.
             foreach (IPAddress address in Dns.GetHostEntry(hostName).AddressList)
             {
                 //Console.WriteLine($"    {address}");
-                if (address.ToString().Length >= 7) { host = address.ToString(); break; } //защитка от "::1" адресса
+                //if (address.ToString().Length >= 7) { host = address.ToString(); break; } //защитка от "::1" адресса
             }
+            host = "192.168.1.42";
             Console.WriteLine("host: " + host);
+            new PetshopServer(); //Создаем прослушку и сам сервер
 
             while (true)
             {
                 //SendRequest(Console.ReadLine());
-                SendRequest("GET /pets");
-                Console.ReadKey();
                 SendRequest("POST /pets");
                 Console.ReadKey();
+                SendRequest("GET /pets");
+                Console.ReadKey();
+                SendRequest("GET /petsi==ss");
+                Console.ReadKey();
             }
-
-            //Task.Run(async () =>
-            //{
-            WebRequest requestt = WebRequest.Create($@"http://{host}:80/g=123"); ///get 1
-            requestt.Credentials = CredentialCache.DefaultCredentials;
-            requestt.Method = "GET";
-            requestt.ContentType = "application/x-www-form-urlencoded";
-            WebResponse responsee = requestt.GetResponse();
-            Console.WriteLine("Отправилось...");
-            using (Stream stream = responsee.GetResponseStream())
-            {
-                using (StreamReader reader = new StreamReader(stream))
-                {
-                    Console.WriteLine(reader.ReadToEnd());
-                }
-            }
-            responsee.Close();
-            Console.WriteLine("Все конченно!");
-            //});
-
-            //WebRequest request = WebRequest.Create("http://localhost:5374/Home/PostData?sName=Иван Иванов&age=31"); //get2
-            //WebResponse response = await request.GetResponseAsync();
-            //using (Stream stream = response.GetResponseStream())
-            //{
-            //    using (StreamReader reader = new StreamReader(stream))
-            //    {
-            //        Console.WriteLine(reader.ReadToEnd());
-            //    }
-            //}
-            //response.Close();
-
-            //WebRequest request = WebRequest.Create("http://localhost:5374/Home/PostData");  //post
-            //request.Method = "POST";
-            //string sName = "sName=Иван Иванов&age=31";
-            //byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(sName);
-            //request.ContentType = "application/x-www-form-urlencoded";
-            //request.ContentLength = byteArray.Length;
-            //using (Stream dataStream = request.GetRequestStream())
-            //{
-            //    dataStream.Write(byteArray, 0, byteArray.Length);
-            //}
         }
     }
 }
