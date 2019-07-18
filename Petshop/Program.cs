@@ -23,9 +23,11 @@ namespace Petshop
 
     class PetshopServer
     {
+        public static bool live = true;
+
         #region Server
         HttpListener Listener; // Объект, принимающий клиентов
-        public static string host; //адрес сервера
+        public static string host = "localhost"; //адрес сервера
 
         public PetshopServer()
         {
@@ -33,18 +35,25 @@ namespace Petshop
             Listener.Prefixes.Add($"http://{host}:80/");
             Listener.Start();
 
-            Task.Run(() => { while (true) new Client(Listener.GetContext()); });
+            Task.Run(() => { while (true) new Session(Listener.GetContext()); });
         }
 
         ~PetshopServer() { if (Listener != null) Listener.Stop(); } // Остановка сервера
         #endregion
 
         #region Client
-        public static void SendRequest(string command)
+        public static void SendRequest()
         {
-            command = command.ToLower();
-            string responseFromServer ="";
+            Console.Clear();
+            Console.WriteLine("***************************** PetsShop *****************************\n" +
+                              "* A small test task:                                               *\n" +
+                              "* The console server to get and post requests and responses.       *\n" +
+                              "* Version 1.0.                                                     *\n" +
+                              "********************************************************************\n\n");
+            Console.Write("Input >: "); string command = Console.ReadLine();
 
+            //command = command.ToLower();
+            string responseFromServer = "";
             if (command.ToLower().StartsWith("post /pets"))  //post
             {
                 var request = (HttpWebRequest)WebRequest.Create($"http://{host}:80/");
@@ -59,7 +68,7 @@ namespace Petshop
                 {
                     stream.Write(data, 0, data.Length);
                 }
-                Console.WriteLine("Отправилось post...");
+                Console.WriteLine("\nSending POST request...\n");
                 var response = (HttpWebResponse)request.GetResponse();
                 var responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
                 responseFromServer = responseString.ToString();
@@ -68,39 +77,36 @@ namespace Petshop
             else if (command.ToLower().StartsWith("get ")) //get
             {
 
-                var request = (HttpWebRequest)WebRequest.Create($"http://{host}:80/?"+ command.Substring(4));
-                Console.WriteLine("Отправилось get...");
+                var request = (HttpWebRequest)WebRequest.Create($"http://{host}:80/?" + command.Substring(4));
+                Console.WriteLine("\nSending GET request...\n");
                 var response = (HttpWebResponse)request.GetResponse();
                 var responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
                 responseFromServer = responseString.ToString();
             }
-            else { Console.Clear(); Console.WriteLine("Invalid command!"); return; } //неверные команды
+            else { Console.WriteLine("\n> Invalid command! Pls write 'POSТ /pets' or 'GET /pets' or another GET request.\n"); return; } //неверные команды
 
-            Console.WriteLine("Server:" + responseFromServer);
+            Console.WriteLine("\n> Server:\n> " + responseFromServer);
+            Console.WriteLine("\n\n--Press any key to contine or Esc to exit--");
+            if (Console.ReadKey().Key == ConsoleKey.Escape) live = false;
         }
         #endregion
 
         static void Main(string[] args)
         {
-            string hostName = Dns.GetHostName();     // Получение имени компьютера.
-            foreach (IPAddress address in Dns.GetHostEntry(hostName).AddressList)
-            {
-                //Console.WriteLine($"    {address}");
-                //if (address.ToString().Length >= 7) { host = address.ToString(); break; } //защитка от "::1" адресса
-            }
-            host = "192.168.1.42";
-            Console.WriteLine("host: " + host);
+            #region Game Of IP's
+            //string hostName = Dns.GetHostName();     // Получение имени компьютера.
+            //foreach (IPAddress address in Dns.GetHostEntry(hostName).AddressList)
+            //{
+            //    Console.WriteLine($"    {address}");
+            //    if (address.ToString().Length >= 7) { host = address.ToString(); break; } //защитка от "::1" адресса
+            //}
+            #endregion
+
             new PetshopServer(); //Создаем прослушку и сам сервер
 
-            while (true)
+            while (live)
             {
-                //SendRequest(Console.ReadLine());
-                SendRequest("POST /pets");
-                Console.ReadKey();
-                SendRequest("GET /pets");
-                Console.ReadKey();
-                SendRequest("GET /petsi==ss");
-                Console.ReadKey();
+                SendRequest();
             }
         }
     }
